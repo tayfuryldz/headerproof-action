@@ -25,7 +25,7 @@ inputs:
     default: "true"
 outputs:
   exit-code:
-    description: HeaderProof exit code: 0 no finding, 1 finding, 2 error.
+    description: HeaderProof exit code: 0 no finding, 1 finding, 2 scan error, 130 interrupted.
     value: ${{ steps.scan.outputs.exit-code }}
   output:
     description: Path written by HeaderProof.
@@ -68,4 +68,5 @@ runs:
         echo "exit-code=$rc" >> "$GITHUB_OUTPUT"
         if [ "$rc" -eq 2 ]; then exit 2; fi
         if [ "$rc" -eq 1 ] && [ "$FAIL_ON_FINDINGS" = "true" ]; then exit 1; fi
+        if [ "$rc" -ne 0 ] && [ "$rc" -ne 1 ]; then exit "$rc"; fi
         exit 0

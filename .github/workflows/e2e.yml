@@ -1,0 +1,70 @@
+name: HeaderProof Action E2E
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  published-cli:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Start controlled fixture
+        run: |
+          python tests/fixture_server.py &
+          echo $! > fixture.pid
+          for _ in {1..20}; do
+            curl -fsS http://127.0.0.1:18080/clean >/dev/null && exit 0
+            sleep 0.25
+          done
+          exit 1
+
+      - name: Clean target
+        id: clean
+        uses: ./
+        with:
+          target: http://127.0.0.1:18080/clean
+          output: clean.sarif
+          version: v1.4.1
+          fail-on-findings: "false"
+      - name: Assert clean contract
+        env:
+          EXIT_CODE: ${{ steps.clean.outputs.exit-code }}
+        run: |
+          test "$EXIT_CODE" = "0"
+          python - <<'PY'
+          import json
+          payload = json.load(open("clean.sarif"))
+          assert payload["version"] == "2.1.0"
+          assert payload["runs"][0]["results"] == []
+          PY
+
+      - name: Reproduced finding target
+        id: finding
+        uses: ./
+        with:
+          target: http://127.0.0.1:18080/cors
+          output: finding.sarif
+          version: v1.4.1
+          fail-on-findings: "false"
+
+      - name: Assert finding contract
+        env:
+          EXIT_CODE: ${{ steps.finding.outputs.exit-code }}
+        run: |
+          test "$EXIT_CODE" = "1"
+          python - <<'PY'
+          import json
+          payload = json.load(open("finding.sarif"))
+          assert payload["version"] == "2.1.0"
+          assert payload["runs"][0]["results"]
+          PY
+
+      - name: Stop fixture
+        if: always()
+        run: kill "$(cat fixture.pid)" 2>/dev/null || true
