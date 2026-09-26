@@ -1,0 +1,71 @@
+name: HeaderProof
+description: Run HeaderProof and write evidence-gated findings for CI.
+inputs:
+  target:
+    description: Single target URL or hostname.
+    required: false
+  list:
+    description: Path to a URL list. Mutually exclusive with target.
+    required: false
+  severity:
+    description: Comma-separated severity filter.
+    required: false
+    default: high,medium
+  output:
+    description: Findings output path; extension selects the format.
+    required: false
+    default: headerproof.sarif
+  version:
+    description: HeaderProof release tag or latest.
+    required: false
+    default: latest
+  fail-on-findings:
+    description: Fail the step when HeaderProof returns exit code 1.
+    required: false
+    default: "true"
+outputs:
+  exit-code:
+    description: HeaderProof exit code: 0 no finding, 1 finding, 2 error.
+    value: ${{ steps.scan.outputs.exit-code }}
+  output:
+    description: Path written by HeaderProof.
+    value: ${{ inputs.output }}
+runs:
+  using: composite
+  steps:
+    - name: Install HeaderProof
+      shell: bash
+      env:
+        HEADERPROOF_VERSION: ${{ inputs.version }}
+      run: |
+        curl -fsSL https://raw.githubusercontent.com/TayfurYldz/headerproof/main/install.sh | sh
+        echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+    - name: Scan
+      id: scan
+      shell: bash
+      env:
+        TARGET: ${{ inputs.target }}
+        LIST: ${{ inputs.list }}
+        SEVERITY: ${{ inputs.severity }}
+        OUTPUT: ${{ inputs.output }}
+        FAIL_ON_FINDINGS: ${{ inputs.fail-on-findings }}
+      run: |
+        if [ -n "$TARGET" ] && [ -n "$LIST" ]; then
+          echo "headerproof-action: target and list are mutually exclusive" >&2
+          exit 2
+        fi
+        if [ -z "$TARGET" ] && [ -z "$LIST" ]; then
+          echo "headerproof-action: target or list is required" >&2
+          exit 2
+        fi
+        args=(-silent -o "$OUTPUT")
+        if [ -n "$SEVERITY" ]; then args+=(-severity "$SEVERITY"); fi
+        if [ -n "$TARGET" ]; then args+=("$TARGET"); else args+=(-l "$LIST"); fi
+        set +e
+        headerproof "${args[@]}"
+        rc=$?
+        set -e
+        echo "exit-code=$rc" >> "$GITHUB_OUTPUT"
+        if [ "$rc" -eq 2 ]; then exit 2; fi
+        if [ "$rc" -eq 1 ] && [ "$FAIL_ON_FINDINGS" = "true" ]; then exit 1; fi
+        exit 0
