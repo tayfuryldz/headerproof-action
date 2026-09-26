@@ -48,7 +48,7 @@ jobs:
         id: finding
         uses: ./
         with:
-          target: http://127.0.0.1:18080/cors
+          target: http://127.0.0.1:18080/finding
           output: finding.sarif
           version: v1.4.1
           fail-on-findings: "false"
