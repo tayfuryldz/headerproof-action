@@ -25,7 +25,7 @@ inputs:
     default: "true"
 outputs:
   exit-code:
-    description: HeaderProof exit code: 0 no finding, 1 finding, 2 scan error, 130 interrupted.
+    description: "HeaderProof exit code: 0 no finding, 1 finding, 2 scan error, 130 interrupted."
     value: ${{ steps.scan.outputs.exit-code }}
   output:
     description: Path written by HeaderProof.
