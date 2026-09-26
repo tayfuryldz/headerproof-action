@@ -36,9 +36,10 @@ runs:
     - name: Install HeaderProof
       shell: bash
       env:
+        GITHUB_ACTION_PATH: ${{ github.action_path }}
         HEADERPROOF_VERSION: ${{ inputs.version }}
       run: |
-        curl -fsSL https://raw.githubusercontent.com/TayfurYldz/headerproof/main/install.sh | sh
+        "$GITHUB_ACTION_PATH/install.sh"
         echo "$HOME/.local/bin" >> "$GITHUB_PATH"
     - name: Scan
       id: scan
